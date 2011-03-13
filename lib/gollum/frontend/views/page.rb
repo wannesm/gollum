@@ -19,6 +19,10 @@ module Precious
         @page.version.authored_date.strftime("%Y-%m-%d %H:%M:%S")
       end
 
+     def edit_external
+       "mvim://open?url=file:///Users/wannes/Documents/notes.wiki/" + @page.path
+     end
+
       def has_footer
         @footer = (@page.footer || false) if @footer.nil?
         !!@footer
