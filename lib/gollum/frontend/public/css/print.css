@@ -1,0 +1,17 @@
+
+/* Header stuff */
+
+.actions, #searchbar { display: none; }
+#head ul.actions { display: none; }
+
+/* Right bar stuff */
+
+#wiki-rightbar { display: none; }
+.has-rightbar #wiki-body { width: 100%; }
+
+/* Footer stuff */
+
+#footer #last-edit a { display: none; }
+#wiki-footer { display: none; }
+
+
