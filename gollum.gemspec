@@ -4,8 +4,8 @@ Gem::Specification.new do |s|
   s.rubygems_version = '1.3.5'
 
   s.name              = 'gollum'
-  s.version           = '1.3.0'
-  s.date              = '2011-04-25'
+  s.version           = '1.3.1'
+  s.date              = '2011-07-21'
   s.rubyforge_project = 'gollum'
 
   s.summary     = "A simple, Git-powered wiki."
@@ -29,6 +29,7 @@ Gem::Specification.new do |s|
   s.add_dependency('mustache', [">= 0.11.2", "< 1.0.0"])
   s.add_dependency('sanitize', "~> 2.0.0")
   s.add_dependency('nokogiri', "~> 1.4")
+  s.add_dependency('redcarpet')
 
   s.add_development_dependency('RedCloth')
   s.add_development_dependency('mocha')
@@ -37,6 +38,7 @@ Gem::Specification.new do |s|
   s.add_development_dependency('shoulda')
   s.add_development_dependency('rack-test')
   s.add_development_dependency('wikicloth')
+  s.add_development_dependency('rake', '~> 0.9.2')
 
   # = MANIFEST =
   s.files = %w[
