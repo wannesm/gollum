@@ -1,5 +1,6 @@
 require 'digest/sha1'
 require 'cgi'
+require 'pygments'
 
 module Gollum
 
@@ -13,7 +14,7 @@ module Gollum
       @wiki    = page.wiki
       @name    = page.filename
       @data    = page.text_data
-      @version = page.version.id
+      @version = page.version.id if page.version
       @format  = page.format
       @dir     = ::File.dirname(page.path)
       @tagmap  = {}
@@ -366,7 +367,7 @@ module Gollum
     # Returns the placeholder'd String data.
     def extract_code(data)
       data.gsub!(/^``` ?([^\r\n]+)?\r?\n(.+?)\r?\n```\r?$/m) do
-        id     = Digest::SHA1.hexdigest($2)
+        id     = Digest::SHA1.hexdigest("#{$1}.#{$2}")
         cached = check_cache(:code, id)
         @codemap[id] = cached   ?
           { :output => cached } :
@@ -398,9 +399,8 @@ module Gollum
       end
 
       highlighted = begin
-        blocks.size.zero? ? [] : Gollum::Albino.colorize(blocks)
-      rescue ::Albino::ShellArgumentError, ::Albino::TimeoutExceeded,
-               ::Albino::MaximumOutputExceeded
+        blocks.map { |lang, code| Pygments.highlight(code, :lexer => lang) }
+      rescue ::RubyPython::PythonError
         []
       end
 
@@ -449,6 +449,7 @@ module Gollum
           @wiki.sanitizer
 
         data = extract_tex(@data.dup)
+        data = extract_code(data)
         data = extract_tags(data)
 
         flags = [
@@ -457,18 +458,19 @@ module Gollum
           :tables,
           :strikethrough,
           :lax_htmlblock,
-          :gh_blockcode,
           :no_intraemphasis
         ]
         data = Redcarpet.new(data, *flags).to_html
         data = process_tags(data)
+        data = process_code(data)
 
         doc  = Nokogiri::HTML::DocumentFragment.parse(data)
 
         doc.search('pre').each do |node|
           next unless lang = node['lang']
+          next unless lexer = Pygments::Lexer[lang]
           text = node.inner_text
-          html = Gollum::Albino.colorize(text, lang)
+          html = lexer.highlight(text)
           node.replace(html)
         end
 

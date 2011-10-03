@@ -47,23 +47,36 @@ module Gollum
       'img' => {'src'  => ['http', 'https', :relative]}
     }.freeze
 
-    # Default transformers to force @id attributes with 'wiki-' prefix
+    ADD_ATTRIBUTES = lambda do |env, node|
+      if add = env[:config][:add_attributes][node.name]
+        add.each do |key, value|
+          node[key] = value
+        end
+      end
+    end
 
+    # Default transformers to force @id attributes with 'wiki-' prefix
     TRANSFORMERS = [
       lambda do |env|
         node      = env[:node]
-        return if env[:is_whitelisted] || !node.element? || !node['id'] 
+        return if env[:is_whitelisted] || !node.element?
         prefix = env[:config][:id_prefix]
-        node['id'] = node['id'].gsub(/\A(#{prefix})?/, prefix)
-
-        {:node_whitelist => [node]}
+        found_attrs = %w(id name).select do |key|
+          if value = node[key]
+            node[key] = value.gsub(/\A(#{prefix})?/, prefix)
+          end
+        end
+        if found_attrs.size > 0
+          ADD_ATTRIBUTES.call(env, node)
+          {:node_whitelist => [node]}
+        end
       end,
       lambda do |env|
         node = env[:node]
-        return unless node['href']
+        return unless value = node['href']
         prefix = env[:config][:id_prefix]
-        node['href'] = node['href'].gsub(/\A\#(#{prefix})?/, '#'+prefix)
-
+        node['href'] = value.gsub(/\A\#(#{prefix})?/, '#'+prefix)
+        ADD_ATTRIBUTES.call(env, node)
         {:node_whitelist => [node]}
       end
     ].freeze
@@ -83,8 +96,9 @@ module Gollum
     # attributes.  Default: TRANSFORMERS
     attr_reader :transformers
 
-    # Gets a String prefix which is added to ID attributes. Default: 'wiki-'
-    attr_reader :id_prefix
+    # Gets or sets a String prefix which is added to ID attributes.
+    # Default: 'wiki-'
+    attr_accessor :id_prefix
 
     # Gets a Hash describing HTML attributes that Sanitize should add.  
     # Default: {}
