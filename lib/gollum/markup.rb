@@ -1,6 +1,7 @@
 require 'digest/sha1'
 require 'cgi'
 require 'pygments'
+require 'base64'
 
 module Gollum
 
@@ -52,15 +53,11 @@ module Gollum
         doc  = Nokogiri::HTML::DocumentFragment.parse(data)
         doc  = sanitize.clean_node!(doc) if sanitize
         yield doc if block_given?
-        data = doc_to_html(doc)
+        data = doc.to_html
       end
       data = process_tex(data)
       data.gsub!(/<p><\/p>/, '')
       data
-    end
-
-    def doc_to_html(doc)
-      doc.to_xhtml(:save_with => Nokogiri::XML::Node::SaveOptions::AS_XHTML)
     end
 
     #########################################################################
@@ -97,13 +94,7 @@ module Gollum
     def process_tex(data)
       @texmap.each do |id, spec|
         type, tex = *spec
-        out =
-        case type
-          when :block
-            %{<script type="math/tex; mode=display">#{tex}</script>}
-          when :inline
-            %{<script type="math/tex">#{tex}</script>}
-        end
+        out = %{<img src="#{::File.join(@wiki.base_path, '_tex.png')}?type=#{type}&data=#{Base64.encode64(tex).chomp}" alt="#{CGI.escapeHTML(tex)}">}
         data.gsub!(id, out)
       end
       data
@@ -437,52 +428,5 @@ module Gollum
     # Returns nothing.
     def update_cache(type, id, data)
     end
-  end
-
-  begin
-    require 'redcarpet'
-
-    class MarkupGFM < Markup
-      def render(no_follow = false)
-        sanitize = no_follow ?
-          @wiki.history_sanitizer :
-          @wiki.sanitizer
-
-        data = extract_tex(@data.dup)
-        data = extract_code(data)
-        data = extract_tags(data)
-
-        flags = [
-          :autolink,
-          :fenced_code,
-          :tables,
-          :strikethrough,
-          :lax_htmlblock,
-          :no_intraemphasis
-        ]
-        data = Redcarpet.new(data, *flags).to_html
-        data = process_tags(data)
-        data = process_code(data)
-
-        doc  = Nokogiri::HTML::DocumentFragment.parse(data)
-
-        doc.search('pre').each do |node|
-          next unless lang = node['lang']
-          next unless lexer = Pygments::Lexer[lang]
-          text = node.inner_text
-          html = lexer.highlight(text)
-          node.replace(html)
-        end
-
-        doc  = sanitize.clean_node!(doc) if sanitize
-        yield doc if block_given?
-
-        data = doc_to_html(doc)
-        data = process_tex(data)
-        data
-      end
-    end
-  rescue LoadError
-    MarkupGFM = Markup
   end
 end
