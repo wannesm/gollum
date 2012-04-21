@@ -15,6 +15,7 @@ module Precious
     # We want to serve public assets for now
     set :public_folder, "#{dir}/public"
     set :static,         true
+    set :default_markup, :markdown
 
     set :mustache, {
       # Tell mustache where the Views constant lives
@@ -77,7 +78,7 @@ module Precious
 
       begin
         wiki.write_page(name, format, params[:content], commit_message)
-        redirect "/#{CGI.escape(name)}"
+        redirect "/#{CGI.escape(Gollum::Page.cname(name))}"
       rescue Gollum::DuplicatePageError => e
         @message = "Duplicate page: #{e.message}"
         mustache :error

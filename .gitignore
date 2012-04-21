@@ -4,3 +4,4 @@ pkg
 .bundle
 Gemfile.lock
 lib/gollum/frontend/public/javascript/MathJax/fonts
+*.gem

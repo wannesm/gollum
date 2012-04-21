@@ -21,6 +21,7 @@ module Gollum
       @tagmap  = {}
       @codemap = {}
       @texmap  = {}
+      @wsdmap  = {}
       @premap  = {}
     end
 
@@ -29,15 +30,17 @@ module Gollum
     #
     # no_follow - Boolean that determines if rel="nofollow" is added to all
     #             <a> tags.
+    # encoding  - Encoding Constant or String.
     #
     # Returns the formatted String content.
-    def render(no_follow = false)
+    def render(no_follow = false, encoding = nil)
       sanitize = no_follow ?
         @wiki.history_sanitizer :
         @wiki.sanitizer
 
       data = extract_tex(@data.dup)
       data = extract_code(data)
+      data = extract_wsd(data)
       data = extract_tags(data)
       begin
         data = GitHub::Markup.render(@name, data)
@@ -48,7 +51,7 @@ module Gollum
         data = %{<p class="gollum-error">#{e.message}</p>}
       end
       data = process_tags(data)
-      data = process_code(data)
+      data = process_code(data, encoding)
       if sanitize || block_given?
         doc  = Nokogiri::HTML::DocumentFragment.parse(data)
         doc  = sanitize.clean_node!(doc) if sanitize
@@ -56,6 +59,7 @@ module Gollum
         data = doc.to_html
       end
       data = process_tex(data)
+      data = process_wsd(data)
       data.gsub!(/<p><\/p>/, '')
       data
     end
@@ -357,24 +361,37 @@ module Gollum
     #
     # Returns the placeholder'd String data.
     def extract_code(data)
-      data.gsub!(/^``` ?([^\r\n]+)?\r?\n(.+?)\r?\n```\r?$/m) do
-        id     = Digest::SHA1.hexdigest("#{$1}.#{$2}")
+      data.gsub!(/^([ \t]*)``` ?([^\r\n]+)?\r?\n(.+?)\r?\n\1```\r?$/m) do
+        id     = Digest::SHA1.hexdigest("#{$2}.#{$3}")
         cached = check_cache(:code, id)
         @codemap[id] = cached   ?
           { :output => cached } :
-          { :lang => $1, :code => $2 }
-        id
+          { :lang => $2, :code => $3, :indent => $1 }
+        "#{$1}#{id}" # print the SHA1 ID with the proper indentation
       end
       data
+    end
+
+    # Remove the leading space from a code block. Leading space
+    # is only removed if every single line in the block has leading
+    # whitespace.
+    #
+    # code      - The code block to remove spaces from
+    # regex     - A regex to match whitespace
+    def remove_leading_space(code, regex)
+      if code.lines.all? { |line| line =~ /\A\r?\n\Z/ || line =~ regex }
+        code.gsub!(regex, '')
+      end
     end
 
     # Process all code from the codemap and replace the placeholders with the
     # final HTML.
     #
-    # data - The String data (with placeholders).
+    # data     - The String data (with placeholders).
+    # encoding - Encoding Constant or String.
     #
     # Returns the marked up String data.
-    def process_code(data)
+    def process_code(data, encoding = nil)
       return data if data.nil? || data.size.zero? || @codemap.size.zero?
 
       blocks    = []
@@ -382,15 +399,18 @@ module Gollum
         next if spec[:output] # cached
 
         code = spec[:code]
-        if code.lines.all? { |line| line =~ /\A\r?\n\Z/ || line =~ /^(  |\t)/ }
-          code.gsub!(/^(  |\t)/m, '')
-        end
+
+        remove_leading_space(code, /^#{spec[:indent]}/m)
+        remove_leading_space(code, /^(  |\t)/m)
 
         blocks << [spec[:lang], code]
       end
 
       highlighted = begin
-        blocks.map { |lang, code| Pygments.highlight(code, :lexer => lang) }
+        encoding ||= 'utf-8'
+        blocks.map { |lang, code|
+          Pygments.highlight(code, :lexer => lang, :options => {:encoding => encoding.to_s})
+        }
       rescue ::RubyPython::PythonError
         []
       end
@@ -407,6 +427,41 @@ module Gollum
         data.gsub!(id, body)
       end
 
+      data
+    end
+
+    #########################################################################
+    #
+    # Sequence Diagrams
+    #
+    #########################################################################
+
+    # Extract all sequence diagram blocks into the wsdmap and replace with
+    # placeholders.
+    #
+    # data - The raw String data.
+    #
+    # Returns the placeholder'd String data.
+    def extract_wsd(data)
+      data.gsub(/^\{\{\{ ?(.+?)\r?\n(.+?)\r?\n\}\}\}\r?$/m) do
+        id = Digest::SHA1.hexdigest($2)
+        @wsdmap[id] = { :style => $1, :code => $2 }
+        id
+      end
+    end
+
+    # Process all diagrams from the wsdmap and replace the placeholders with
+    # the final HTML.
+    #
+    # data - The String data (with placeholders).
+    #
+    # Returns the marked up String data.
+    def process_wsd(data)
+      @wsdmap.each do |id, spec|
+        style = spec[:style]
+        code = spec[:code]
+        data.gsub!(id, Gollum::WebSequenceDiagram.new(code, style).to_tag)
+      end
       data
     end
 
@@ -429,4 +484,6 @@ module Gollum
     def update_cache(type, id, data)
     end
   end
+
+  MarkupGFM = Markup
 end

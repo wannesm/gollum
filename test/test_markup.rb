@@ -422,6 +422,28 @@ context "Markup" do
     compare(content, output)
   end
 
+  test "code blocks with multibyte caracters indent" do
+    content = "a\n\n```ruby\ns = 'やくしまるえつこ'\n```\n\nb"
+    output = "<p>a</p>\n\n<div class=\"highlight\">\n<pre><span class=\"n\">" +
+             "s</span> <span class=\"o\">=</span> <span class=\"s1\">'やくしまるえつこ'" +
+             "</span>\n</pre>\n</div>\n\n\n<p>b</p>"
+    index = @wiki.repo.index
+    index.add("Bilbo-Baggins.md", content)
+    index.commit("Add alpha.jpg")
+
+    page = @wiki.page("Bilbo Baggins")
+    rendered = Gollum::Markup.new(page).render(false, 'utf-8')
+    assert_equal output, rendered
+  end
+
+  test "code blocks with ascii characters" do
+    content = "a\n\n```\n├─foo\n```\n\nb"
+    output = "<p>a</p>\n\n<div class=\"highlight\"><pre>" +
+             "├─<span class=\"n\">foo</span>" +
+             "\n</pre>\n</div>\n\n<p>b</p>"
+    compare(content, output)
+  end
+
   test "code with wiki links" do
     content = <<-END
 booya
@@ -434,17 +456,31 @@ np.array([[2,2],[1,3]],np.float)
     # rendered with Gollum::Markup
     page, rendered = render_page(content)
     assert_markup_highlights_code Gollum::Markup, rendered
-
-    if Gollum.const_defined?(:MarkupGFM)
-      rendered_gfm = Gollum::MarkupGFM.new(page).render
-      assert_markup_highlights_code Gollum::MarkupGFM, rendered_gfm
-    end
   end
 
   def assert_markup_highlights_code(markup_class, rendered)
     assert_match /div class="highlight"/, rendered, "#{markup_class} doesn't highlight code\n #{rendered}"
     assert_match /span class="n"/, rendered, "#{markup_class} doesn't highlight code\n #{rendered}"
     assert_match /\(\[\[/, rendered, "#{markup_class} parses out wiki links\n#{rendered}"
+  end
+
+  #########################################################################
+  #
+  # Web Sequence Diagrams
+  #
+  #########################################################################
+
+  test "sequence diagram blocks" do
+    content = "a\n\n{{{default\nalice->bob: Test\n}}}\n\nb"
+    output = /.*<img src="http:\/\/www\.websequencediagrams\.com\/\?img=\w{9}" \/>.*/
+
+    index = @wiki.repo.index
+    index.add("Bilbo-Baggins.md", content)
+    index.commit("Add sequence diagram")
+
+    page = @wiki.page("Bilbo Baggins")
+    rendered = Gollum::Markup.new(page).render
+    assert_not_nil rendered.match(output)
   end
 
   #########################################################################
@@ -456,6 +492,18 @@ np.array([[2,2],[1,3]],np.float)
   test "strips javscript protocol urls" do
     content = "[Hack me](javascript:hacked=true)"
     output = "<p><a>Hackme</a></p>"
+    compare(content, output)
+  end
+
+  test "removes style blocks completely" do
+    content = "<style>body { color: red }</style>foobar"
+    output = "<p>foobar</p>"
+    compare(content, output)
+  end
+
+  test "removes script blocks completely" do
+    content = "<script>alert('hax');</script>foobar"
+    output = "<p>foobar</p>"
     compare(content, output)
   end
 

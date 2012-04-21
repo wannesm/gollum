@@ -1,7 +1,7 @@
 module Gollum
-  # Responsible for handling the commit process for a Wiki.  It sets up the 
+  # Responsible for handling the commit process for a Wiki.  It sets up the
   # Git index, provides methods for modifying the tree, and stores callbacks
-  # to be fired after the commit has been made.  This is specifically 
+  # to be fired after the commit has been made.  This is specifically
   # designed to handle multiple updated pages in a single commit.
   class Committer
     # Gets the instance of the Gollum::Wiki that is being updated.
@@ -21,7 +21,7 @@ module Gollum
     #           :tree      - Optional String SHA of the tree to create the
     #                        index from.
     #           :committer - Optional Gollum::Committer instance.  If provided,
-    #                        assume that this operation is part of batch of 
+    #                        assume that this operation is part of batch of
     #                        updates and the commit happens later.
     #
     # Returns the Committer instance.
@@ -73,7 +73,7 @@ module Gollum
     #
     # dir    - The String subdirectory of the Gollum::Page without any
     #          prefix or suffix slashes (e.g. "foo/bar").
-    # name   - The String Gollum::Page name.
+    # name   - The String Gollum::Page filename_stripped.
     # format - The Symbol Gollum::Page format.
     # data   - The String wiki data to store in the tree map.
     # allow_same_ext - A Boolean determining if the tree map allows the same
@@ -111,7 +111,8 @@ module Gollum
     # is a working directory present.
     #
     # dir    - The String directory in which the file lives.
-    # name   - The String name of the page (may be in human format).
+    # name   - The String name of the page or the stripped filename
+    #          (should be pre-canonicalized if required).
     # format - The Symbol format of the page.
     #
     # Returns nothing.
@@ -151,7 +152,7 @@ module Gollum
 
     # Adds a callback to be fired after a commit.
     #
-    # block - A block that expects this Committer instance and the created 
+    # block - A block that expects this Committer instance and the created
     #         commit's SHA1 as the arguments.
     #
     # Returns nothing.

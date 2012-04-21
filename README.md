@@ -26,7 +26,7 @@ The best way to install Gollum is with RubyGems:
 If you're installing from source, you can use [Bundler][bundler] to pick up all the
 gems:
 
-    $ bundle install # ([more info](http://gembundler.com/bundle_install.html))
+    $ bundle install
 
 In order to use the various formats that Gollum supports, you will need to
 separately install the necessary dependencies for each format. You only need
@@ -34,7 +34,8 @@ to install the dependencies for the formats that you plan to use.
 
 * [ASCIIDoc](http://www.methods.co.nz/asciidoc/) -- `brew install asciidoc`
 * [Creole](http://wikicreole.org/) -- `gem install creole`
-* [Markdown](http://daringfireball.net/projects/markdown/) -- `gem install rdiscount`
+* [Markdown](http://daringfireball.net/projects/markdown/) -- `gem install redcarpet`
+* [GitHub Flavored Markdown](http://github.github.com/github-flavored-markdown/) -- `gem install github-markdown`
 * [Org](http://orgmode.org/) -- `gem install org-ruby`
 * [Pod](http://search.cpan.org/dist/perl/pod/perlpod.pod) -- `Pod::Simple::HTML` comes with Perl >= 5.10. Lower versions should install Pod::Simple from CPAN.
 * [RDoc](http://rdoc.sourceforge.net/)
@@ -294,18 +295,19 @@ separately) by using the following syntax:
       end
     ```
 
-The block must start with three backticks (as the first characters on the
-line). After that comes the name of the language that is contained by the
+The block must start with three backticks, at the beginning of a line or
+indented with any number of spaces or tabs.
+After that comes the name of the language that is contained by the
 block. The language must be one of the `short name` lexer strings supported by
 Pygments. See the [list of lexers](http://pygments.org/docs/lexers/) for valid
 options.
 
-If the block contents are indented two spaces or one tab, then that whitespace
-will be ignored (this makes the blocks easier to read in plaintext).
+The block contents should be indented at the same level than the opening backticks.
+If the block contents are indented with an additional two spaces or one tab,
+then that whitespace will be ignored (this makes the blocks easier to read in plaintext).
 
-The block must end with three backticks as the first characters on a
-line.
-
+The block must end with three backticks indented at the same level than the opening
+backticks.
 
 ## MATHEMATICAL EQUATIONS
 
@@ -320,6 +322,19 @@ inline with regular text. For example:
 
     The Pythagorean theorem is \( a^2 + b^2 = c^2 \).
 
+
+## SEQUENCE DIAGRAMS
+
+You may imbed sequence diagrams into your wiki page (rendered by
+[WebSequenceDiagrams](http://www.websequencediagrams.com) by using the
+following syntax:
+
+    {{{ blue-modern
+      alice->bob: Test
+      bob->alice: Test response
+    }}}
+
+You can replace the string "blue-modern" with any supported style.
 
 ## API DOCUMENTATION
 
@@ -428,6 +443,19 @@ To delete a page and commit the change:
 
     wiki.delete_page(page, commit)
 
+### RACK
+
+You can also run gollum with any rack-compatible server by placing this config.ru
+file inside your wiki repository. This allows you to utilize any Rack middleware
+like Rack::Auth, OmniAuth, etc.
+
+    #!/usr/bin/env ruby
+    require 'rubygems'
+    require 'gollum/frontend/app'
+
+    gollum_path = File.expand_path(File.dirname(__FILE__)) # CHANGE THIS TO POINT TO YOUR OWN WIKI REPO
+    Precious::App.set(:default_markup, :markdown) # set your favorite markup language
+    run Precious::App
 
 ## CONTRIBUTE
 
